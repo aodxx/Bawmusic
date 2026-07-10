@@ -6,7 +6,7 @@
 const Bawmusic_Config = {
   // 🔧 Paste your deployed Google Apps Script Web App URL here after deployment.
   // Guide: README.md → "Deploying the backend"
-  API_URL: localStorage.getItem('bawmusic_api_url') || 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE',
+  API_URL: localStorage.getItem('bawmusic_api_url') || 'https://script.google.com/macros/s/AKfycbyjWjFDw2TF6alQWm7PPc-0UEvntu-07-LqMWFnHKrbWaDCrhHKMO8iqHRon9nWyZGd/exec',
 };
 
 const BawmusicAPI = {
