@@ -1,0 +1,34 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4C6FFF"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="108" fill="url(#glow)"/>
+
+  <!-- Stage light beam -->
+  <path d="M256 96 L340 240 L172 240 Z" fill="#ffffff" opacity="0.12"/>
+
+  <!-- Microphone body -->
+  <g fill="#ffffff">
+    <rect x="226" y="120" width="60" height="132" rx="30"/>
+    <rect x="214" y="150" width="8" height="70" rx="4" opacity="0.9"/>
+    <rect x="290" y="150" width="8" height="70" rx="4" opacity="0.9"/>
+    <path d="M186 232 a70 70 0 0 0 140 0" stroke="#ffffff" stroke-width="16" fill="none" stroke-linecap="round"/>
+    <rect x="248" y="300" width="16" height="56" rx="8"/>
+    <rect x="206" y="350" width="100" height="16" rx="8"/>
+  </g>
+
+  <!-- Music note accent -->
+  <g fill="#ffffff">
+    <circle cx="352" cy="368" r="20"/>
+    <rect x="368" y="300" width="12" height="72" rx="6"/>
+    <path d="M368 300 L406 288 L406 308 L368 320 Z"/>
+  </g>
+</svg>
