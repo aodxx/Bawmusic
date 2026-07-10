@@ -1,0 +1,23 @@
+{
+  "name": "Bawmusic — ระบบจัดการวงดนตรีและจองงาน",
+  "short_name": "Bawmusic",
+  "description": "ระบบจัดการจองงาน ลูกค้า การเงิน สมาชิกวง และอุปกรณ์ สำหรับนักดนตรีและวงดนตรีมืออาชีพ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F5F6FA",
+  "theme_color": "#4C6FFF",
+  "lang": "th",
+  "dir": "ltr",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "จองงานใหม่", "url": "./index.html?page=jobs", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "ปฏิทิน", "url": "./index.html?page=calendar", "icons": [{ "src": "assets/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>Bawmusic — ระบบจัดการวงดนตรีและจองงาน</title>
+<meta name="description" content="ระบบจัดการจองงาน ลูกค้า การเงิน และวงดนตรี สำหรับนักดนตรีและวงดนตรีมืออาชีพ">
+<meta name="theme-color" content="#4C6FFF">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+<link rel="icon" href="assets/icons/icon-192.png">
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- Tailwind (CDN, utility classes only) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/3.4.1/tailwind.min.js"></script>
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<!-- SweetAlert2 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.10.1/sweetalert2.all.min.js"></script>
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- FullCalendar -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.9/main.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/6.1.9/main.min.js"></script>
+
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="assets/js/api.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.13.5/cdn.min.js"></script>
+<script defer src="assets/js/app.js"></script>
+</head>
+<body class="fade-in">
+
+<div x-data="bawmusicApp" x-cloak :class="{'dark': dark}">
+
+  <!-- ===================== DEMO MODE BANNER ===================== -->
+  <div x-show="demo" class="fixed top-0 inset-x-0 z-50 text-center text-[12px] py-1.5 font-medium" style="background:var(--gradient-brand); color:#fff;">
+    <i class="fa-solid fa-flask"></i> โหมดสาธิต (Demo) — ข้อมูลเป็นตัวอย่าง ยังไม่เชื่อมต่อ Google Sheets ·
+    <a href="#" @click.prevent="goto('settings')" class="underline font-semibold">ไปตั้งค่าการเชื่อมต่อ</a>
+  </div>
+
+  <div class="app-shell" :class="{'pt-7': demo}">
+
+    <!-- ===================== SIDEBAR (Desktop) ===================== -->
+    <aside class="sidebar">
+      <div class="flex items-center gap-3 px-2 py-3 mb-2">
+        <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-white text-lg" style="background:var(--gradient-brand)">
+          <i class="fa-solid fa-music"></i>
+        </div>
+        <div>
+          <p class="font-extrabold text-[15px] leading-tight">Bawmusic</p>
+          <p class="text-[11px]" style="color:var(--color-text-muted)">ระบบจัดการวงดนตรี</p>
+        </div>
+      </div>
+
+      <template x-for="item in [
+        {k:'dashboard', l:'แดชบอร์ด', i:'fa-gauge-high'},
+        {k:'jobs', l:'งานจอง', i:'fa-calendar-check'},
+        {k:'calendar', l:'ปฏิทิน', i:'fa-calendar-days'},
+        {k:'customers', l:'ลูกค้า', i:'fa-user-group'},
+        {k:'finance', l:'การเงิน', i:'fa-sack-dollar'},
+        {k:'members', l:'สมาชิกวง', i:'fa-people-group'},
+        {k:'equipment', l:'อุปกรณ์', i:'fa-guitar'},
+        {k:'settings', l:'ตั้งค่า', i:'fa-gear'},
+      ]" :key="item.k">
+        <div class="side-link" :class="{'active': page===item.k}" @click="goto(item.k)">
+          <i class="fa-solid" :class="item.i"></i>
+          <span x-text="item.l"></span>
+        </div>
+      </template>
+
+      <div class="mt-auto side-link" @click="toggleTheme()">
+        <i class="fa-solid" :class="dark ? 'fa-sun' : 'fa-moon'"></i>
+        <span x-text="dark ? 'โหมดสว่าง' : 'โหมดมืด'"></span>
+      </div>
+    </aside>
+
+    <!-- ===================== MAIN ===================== -->
+    <div class="main-content">
+
+      <!-- Topbar -->
+      <header class="topbar">
+        <div class="flex items-center gap-2 lg:hidden">
+          <div class="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm" style="background:var(--gradient-brand)"><i class="fa-solid fa-music"></i></div>
+          <span class="font-extrabold text-[15px]">Bawmusic</span>
+        </div>
+        <h1 class="hidden lg:block font-bold text-lg capitalize" x-text="{
+          dashboard:'แดชบอร์ด', jobs:'งานจอง', calendar:'ปฏิทิน', customers:'ลูกค้า',
+          finance:'การเงิน', members:'สมาชิกวง', equipment:'อุปกรณ์', settings:'ตั้งค่า'
+        }[page]"></h1>
+        <div class="flex items-center gap-3">
+          <button class="lg:hidden w-9 h-9 rounded-full flex items-center justify-center" style="background:var(--color-bg)" @click="toggleTheme()">
+            <i class="fa-solid text-sm" :class="dark ? 'fa-sun' : 'fa-moon'"></i>
+          </button>
+          <div class="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold" style="background:var(--gradient-brand)">B</div>
+        </div>
+      </header>
+
+      <main class="page-wrap">
+
+        <!-- ============================================================ DASHBOARD -->
+        <section x-show="page==='dashboard'" x-cloak class="fade-in">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+            <div class="stat-card"><div class="glow"></div>
+              <p class="text-[12px]" style="color:var(--color-text-muted)">งานวันนี้</p>
+              <p class="text-2xl font-extrabold mt-1" x-text="dashboardStats?.todayJobs ?? 0"></p>
+              <p class="text-[11px] mt-1"><i class="fa-solid fa-calendar-day" style="color:var(--color-primary)"></i> คิว</p>
+            </div>
+            <div class="stat-card"><div class="glow"></div>
+              <p class="text-[12px]" style="color:var(--color-text-muted)">งานที่จะมาถึง</p>
+              <p class="text-2xl font-extrabold mt-1" x-text="dashboardStats?.upcomingJobs ?? 0"></p>
+              <p class="text-[11px] mt-1"><i class="fa-solid fa-clock" style="color:var(--color-secondary)"></i> งาน</p>
+            </div>
+            <div class="stat-card"><div class="glow"></div>
+              <p class="text-[12px]" style="color:var(--color-text-muted)">รายรับเดือนนี้</p>
+              <p class="text-xl font-extrabold mt-1" x-text="money(dashboardStats?.monthlyIncome ?? 0)"></p>
+              <p class="text-[11px] mt-1"><i class="fa-solid fa-arrow-trend-up" style="color:var(--color-success)"></i> บาท</p>
+            </div>
+            <div class="stat-card"><div class="glow"></div>
+              <p class="text-[12px]" style="color:var(--color-text-muted)">รอมัดจำ/รอชำระ</p>
+              <p class="text-2xl font-extrabold mt-1" x-text="(dashboardStats?.pendingDeposit ?? 0) + (dashboardStats?.pendingPayment ?? 0)"></p>
+              <p class="text-[11px] mt-1"><i class="fa-solid fa-hourglass-half" style="color:var(--color-warning)"></i> รายการ</p>
+            </div>
+          </div>
+
+          <div class="grid lg:grid-cols-3 gap-4">
+            <div class="card card-pad lg:col-span-2">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="font-bold text-[15px]">การจองล่าสุด</h3>
+                <button class="text-[13px] font-semibold" style="color:var(--color-primary)" @click="goto('jobs')">ดูทั้งหมด</button>
+              </div>
+              <template x-if="!dashboardStats?.recent?.length">
+                <div class="empty-state"><i class="fa-solid fa-calendar-xmark"></i><p>ยังไม่มีการจองงาน</p></div>
+              </template>
+              <div class="space-y-2">
+                <template x-for="j in dashboardStats?.recent || []" :key="j.id">
+                  <div class="flex items-center justify-between p-3 rounded-xl" style="background:var(--color-bg)">
+                    <div class="min-w-0">
+                      <p class="font-semibold text-[13.5px] truncate" x-text="j.customerName"></p>
+                      <p class="text-[12px] truncate" style="color:var(--color-text-muted)"><i class="fa-solid fa-location-dot"></i> <span x-text="j.venue"></span> · <span x-text="dateTH(j.eventDate)"></span></p>
+                    </div>
+                    <span class="badge" :class="statusBadge(j.status)" x-text="statusLabel(j.status)"></span>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <div class="card card-pad">
+              <h3 class="font-bold text-[15px] mb-3">สรุปการเงิน</h3>
+              <div class="space-y-3 text-[13.5px]">
+                <div class="flex justify-between"><span style="color:var(--color-text-muted)">รายรับรวม</span><span class="font-bold" x-text="money(totalIncome)"></span></div>
+                <div class="flex justify-between"><span style="color:var(--color-text-muted)">มัดจำรับแล้ว</span><span class="font-bold" x-text="money(totalDeposit)"></span></div>
+                <div class="flex justify-between"><span style="color:var(--color-text-muted)">ค้างรับ</span><span class="font-bold" style="color:var(--color-warning)" x-text="money(totalRemaining)"></span></div>
+                <div class="divider"></div>
+                <div class="flex justify-between"><span style="color:var(--color-text-muted)">รายจ่ายรวม</span><span class="font-bold" style="color:var(--color-danger)" x-text="money(totalExpense)"></span></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================================ JOBS -->
+        <section x-show="page==='jobs'" x-cloak class="fade-in">
+          <div class="flex items-center justify-between mb-3">
+            <div class="relative flex-1 max-w-xs">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[13px]" style="color:var(--color-text-muted)"></i>
+              <input x-model="jobSearch" class="input pl-9" placeholder="ค้นหางาน ลูกค้า จังหวัด...">
+            </div>
+            <button class="btn btn-primary hidden lg:inline-flex" @click="openJobModal()"><i class="fa-solid fa-plus"></i> จองงานใหม่</button>
+          </div>
+
+          <div class="space-y-2.5">
+            <template x-for="j in filteredJobs" :key="j.id">
+              <div class="card card-pad flex items-start justify-between gap-3">
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <p class="font-bold text-[14.5px]" x-text="j.customerName"></p>
+                    <span class="badge" :class="statusBadge(j.status)" x-text="statusLabel(j.status)"></span>
+                  </div>
+                  <p class="text-[12.5px] mt-1" style="color:var(--color-text-muted)">
+                    <i class="fa-solid fa-calendar-day"></i> <span x-text="dateTH(j.eventDate)"></span>
+                    · <i class="fa-solid fa-clock"></i> <span x-text="j.startTime+'-'+j.endTime"></span>
+                  </p>
+                  <p class="text-[12.5px]" style="color:var(--color-text-muted)"><i class="fa-solid fa-location-dot"></i> <span x-text="j.venue"></span> (<span x-text="j.province"></span>)</p>
+                  <div class="flex items-center gap-4 mt-2 text-[12.5px]">
+                    <span>ราคา: <b x-text="money(j.price)"></b></span>
+                    <span style="color:var(--color-warning)">ค้าง: <b x-text="money(j.remaining)"></b></span>
+                  </div>
+                </div>
+                <div class="flex flex-col gap-1.5 shrink-0">
+                  <button class="btn btn-ghost btn-sm" @click="openJobModal(j)"><i class="fa-solid fa-pen"></i></button>
+                  <button class="btn btn-ghost btn-sm" @click="duplicateJob(j)"><i class="fa-solid fa-copy"></i></button>
+                  <button class="btn btn-danger btn-sm" @click="deleteJob(j)"><i class="fa-solid fa-trash"></i></button>
+                </div>
+              </div>
+            </template>
+            <template x-if="!filteredJobs.length">
+              <div class="empty-state"><i class="fa-solid fa-calendar-xmark"></i><p x-text="jobs.length ? 'ไม่พบงานที่ค้นหา' : 'ยังไม่มีการจองงาน — กดปุ่ม + เพื่อเริ่มจองงานแรก'"></p></div>
+            </template>
+          </div>
+        </section>
+
+        <!-- ============================================================ CALENDAR -->
+        <section x-show="page==='calendar'" x-cloak class="fade-in" x-init="$watch('page', p => { if(p==='calendar') $nextTick(() => renderCal()); })">
+          <div class="card card-pad">
+            <div id="calendarEl"></div>
+          </div>
+          <div class="flex gap-4 mt-3 text-[12.5px] flex-wrap">
+            <span><span class="inline-block w-2.5 h-2.5 rounded-full mr-1" style="background:#4C6FFF"></span>จองแล้ว</span>
+            <span><span class="inline-block w-2.5 h-2.5 rounded-full mr-1" style="background:#F59E0B"></span>รอมัดจำ</span>
+            <span><span class="inline-block w-2.5 h-2.5 rounded-full mr-1" style="background:#22C55E"></span>เสร็จสิ้น</span>
+            <span><span class="inline-block w-2.5 h-2.5 rounded-full mr-1" style="background:#EF4444"></span>ยกเลิก</span>
+          </div>
+        </section>
+
+        <!-- ============================================================ CUSTOMERS -->
+        <section x-show="page==='customers'" x-cloak class="fade-in">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-[15px]">รายชื่อลูกค้า (<span x-text="customers.length"></span>)</h3>
+            <button class="btn btn-primary hidden lg:inline-flex" @click="openCustomerModal()"><i class="fa-solid fa-plus"></i> เพิ่มลูกค้า</button>
+          </div>
+          <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <template x-for="c in customers" :key="c.id">
+              <div class="card card-pad">
+                <div class="flex items-center gap-3">
+                  <div class="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold" style="background:var(--gradient-brand)" x-text="c.name?.[0] || '?'"></div>
+                  <div class="min-w-0">
+                    <p class="font-bold text-[14px] truncate" x-text="c.name"></p>
+                    <p class="text-[12px]" style="color:var(--color-text-muted)" x-text="c.province"></p>
+                  </div>
+                </div>
+                <div class="divider"></div>
+                <div class="flex items-center justify-between text-[12.5px]">
+                  <a :href="'tel:'+c.phone" class="flex items-center gap-1" style="color:var(--color-primary)"><i class="fa-solid fa-phone"></i> <span x-text="c.phone"></span></a>
+                  <span style="color:var(--color-text-muted)">งาน: <b x-text="c.jobs ?? 0"></b></span>
+                </div>
+                <div class="flex gap-2 mt-3">
+                  <button class="btn btn-ghost btn-sm flex-1" @click="openCustomerModal(c)"><i class="fa-solid fa-pen"></i> แก้ไข</button>
+                  <button class="btn btn-danger btn-sm" @click="deleteCustomer(c)"><i class="fa-solid fa-trash"></i></button>
+                </div>
+              </div>
+            </template>
+            <template x-if="!customers.length">
+              <div class="empty-state col-span-full"><i class="fa-solid fa-user-slash"></i><p>ยังไม่มีข้อมูลลูกค้า</p></div>
+            </template>
+          </div>
+        </section>
+
+        <!-- ============================================================ FINANCE -->
+        <section x-show="page==='finance'" x-cloak class="fade-in" x-init="$watch('page', p => { if(p==='finance') $nextTick(() => renderFinanceChart()); })">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+            <div class="stat-card"><p class="text-[12px]" style="color:var(--color-text-muted)">รายรับ</p><p class="text-lg font-extrabold text-green-500 mt-1" x-text="money(totalIncome)"></p></div>
+            <div class="stat-card"><p class="text-[12px]" style="color:var(--color-text-muted)">รายจ่าย</p><p class="text-lg font-extrabold text-red-500 mt-1" x-text="money(totalExpense)"></p></div>
+            <div class="stat-card"><p class="text-[12px]" style="color:var(--color-text-muted)">มัดจำรับแล้ว</p><p class="text-lg font-extrabold mt-1" x-text="money(totalDeposit)"></p></div>
+            <div class="stat-card"><p class="text-[12px]" style="color:var(--color-text-muted)">ค้างรับ</p><p class="text-lg font-extrabold text-amber-500 mt-1" x-text="money(totalRemaining)"></p></div>
+          </div>
+
+          <div class="card card-pad mb-4">
+            <canvas id="financeChart" height="90"></canvas>
+          </div>
+
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-[15px]">รายจ่าย</h3>
+            <button class="btn btn-primary btn-sm" @click="openExpenseModal()"><i class="fa-solid fa-plus"></i> เพิ่มรายจ่าย</button>
+          </div>
+          <div class="card">
+            <template x-for="(e,i) in expenses" :key="e.id">
+              <div class="flex items-center justify-between p-3.5" :class="{'border-b':i<expenses.length-1}" style="border-color:var(--color-border)">
+                <div>
+                  <p class="font-semibold text-[13.5px]" x-text="e.category + ' — ' + e.desc"></p>
+                  <p class="text-[12px]" style="color:var(--color-text-muted)" x-text="dateTH(e.date) + (e.jobId ? ' · งาน '+e.jobId : '')"></p>
+                </div>
+                <span class="font-bold text-red-500" x-text="'-'+money(e.amount)"></span>
+              </div>
+            </template>
+            <template x-if="!expenses.length"><div class="empty-state"><i class="fa-solid fa-receipt"></i><p>ยังไม่มีรายจ่าย</p></div></template>
+          </div>
+        </section>
+
+        <!-- ============================================================ MEMBERS -->
+        <section x-show="page==='members'" x-cloak class="fade-in">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-[15px]">สมาชิกวง (<span x-text="members.length"></span>)</h3>
+            <button class="btn btn-primary btn-sm" @click="openMemberModal()"><i class="fa-solid fa-plus"></i> เพิ่มสมาชิก</button>
+          </div>
+          <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <template x-for="m in members" :key="m.id">
+              <div class="card card-pad">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-bold text-[14px]" x-text="m.name + ' (' + m.nickname + ')'"></p>
+                    <p class="text-[12.5px]" style="color:var(--color-primary)" x-text="m.instrument"></p>
+                  </div>
+                  <span class="badge" :class="m.status==='active' ? 'badge-completed' : 'badge-cancelled'" x-text="m.status==='active' ? 'ทำงาน' : 'พัก'"></span>
+                </div>
+                <a :href="'tel:'+m.phone" class="text-[12.5px] flex items-center gap-1 mt-2" style="color:var(--color-text-muted)"><i class="fa-solid fa-phone"></i> <span x-text="m.phone"></span></a>
+                <div class="flex gap-2 mt-3">
+                  <button class="btn btn-ghost btn-sm flex-1" @click="openMemberModal(m)"><i class="fa-solid fa-pen"></i> แก้ไข</button>
+                  <button class="btn btn-danger btn-sm" @click="deleteMember(m)"><i class="fa-solid fa-trash"></i></button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </section>
+
+        <!-- ============================================================ EQUIPMENT -->
+        <section x-show="page==='equipment'" x-cloak class="fade-in">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-bold text-[15px]">อุปกรณ์ (<span x-text="equipment.length"></span>)</h3>
+            <button class="btn btn-primary btn-sm" @click="openEquipmentModal()"><i class="fa-solid fa-plus"></i> เพิ่มอุปกรณ์</button>
+          </div>
+          <div class="card">
+            <template x-for="(eq,i) in equipment" :key="eq.id">
+              <div class="flex items-center justify-between p-3.5" :class="{'border-b':i<equipment.length-1}" style="border-color:var(--color-border)">
+                <div>
+                  <p class="font-semibold text-[13.5px]" x-text="eq.name"></p>
+                  <p class="text-[12px]" style="color:var(--color-text-muted)" x-text="eq.category + ' · จำนวน ' + eq.qty + ' · เก็บที่ ' + eq.storage"></p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="badge" :class="eq.condition==='ดี' ? 'badge-completed' : 'badge-pending'" x-text="eq.condition"></span>
+                  <button class="btn btn-ghost btn-sm" @click="openEquipmentModal(eq)"><i class="fa-solid fa-pen"></i></button>
+                  <button class="btn btn-danger btn-sm" @click="deleteEquipment(eq)"><i class="fa-solid fa-trash"></i></button>
+                </div>
+              </div>
+            </template>
+            <template x-if="!equipment.length"><div class="empty-state"><i class="fa-solid fa-guitar"></i><p>ยังไม่มีข้อมูลอุปกรณ์</p></div></template>
+          </div>
+        </section>
+
+        <!-- ============================================================ SETTINGS -->
+        <section x-show="page==='settings'" x-cloak class="fade-in" x-data="{ apiUrl: BawmusicAPI ? (localStorage.getItem('bawmusic_api_url')||'') : '' }">
+          <div class="card card-pad max-w-xl">
+            <h3 class="font-bold text-[15px] mb-1">การเชื่อมต่อระบบ (Google Apps Script)</h3>
+            <p class="text-[12.5px] mb-3" style="color:var(--color-text-muted)">วาง Web App URL ที่ได้จากการ Deploy Google Apps Script (ดูวิธีใน README.md)</p>
+            <label class="field-label">API URL</label>
+            <input x-model="apiUrl" class="input mb-3" placeholder="https://script.google.com/macros/s/xxxxx/exec">
+            <button class="btn btn-primary w-full" @click="saveApiUrl(apiUrl)"><i class="fa-solid fa-plug"></i> บันทึกและเชื่อมต่อ</button>
+          </div>
+
+          <div class="card card-pad max-w-xl mt-4">
+            <h3 class="font-bold text-[15px] mb-3">ข้อมูลบริษัท/วง</h3>
+            <label class="field-label">ชื่อวง/บริษัท</label>
+            <input x-model="settings.companyName" class="input mb-3" placeholder="เช่น Baw Music Band">
+            <label class="field-label">เบอร์โทร</label>
+            <input x-model="settings.phone" class="input mb-3" placeholder="08x-xxx-xxxx">
+            <label class="field-label">LINE ID</label>
+            <input x-model="settings.line" class="input mb-3">
+            <button class="btn btn-primary w-full" @click="demo ? toast('บันทึกแล้ว (โหมดสาธิต)') : BawmusicAPI.saveSettings(settings).then(()=>toast('บันทึกแล้ว'))"><i class="fa-solid fa-floppy-disk"></i> บันทึกการตั้งค่า</button>
+          </div>
+
+          <div class="card card-pad max-w-xl mt-4">
+            <h3 class="font-bold text-[15px] mb-1">ธีม</h3>
+            <div class="flex items-center justify-between mt-2">
+              <span class="text-[13.5px]">โหมดมืด (Dark Mode)</span>
+              <button class="btn btn-ghost btn-sm" @click="toggleTheme()" x-text="dark ? 'ปิด' : 'เปิด'"></button>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ===================== FAB ===================== -->
+  <button class="fab" x-show="['dashboard','jobs'].includes(page)" @click="openJobModal()">
+    <i class="fa-solid fa-plus"></i>
+  </button>
+
+  <!-- ===================== BOTTOM NAV (Mobile) ===================== -->
+  <nav class="bottom-nav">
+    <template x-for="item in [
+      {k:'dashboard', l:'หน้าหลัก', i:'fa-gauge-high'},
+      {k:'jobs', l:'งานจอง', i:'fa-calendar-check'},
+      {k:'calendar', l:'ปฏิทิน', i:'fa-calendar-days'},
+      {k:'customers', l:'ลูกค้า', i:'fa-user-group'},
+      {k:'settings', l:'ตั้งค่า', i:'fa-gear'},
+    ]" :key="item.k">
+      <div class="nav-item" :class="{'active': page===item.k}" @click="goto(item.k)">
+        <i class="fa-solid" :class="item.i"></i>
+        <span x-text="item.l"></span>
+      </div>
+    </template>
+  </nav>
+
+  <!-- ===================== MODALS ===================== -->
+  <div x-show="modalOpen" x-cloak class="fixed inset-0 z-50 flex items-end lg:items-center justify-center" style="background:rgba(15,17,26,.55)" @click.self="modalOpen=false">
+    <div class="w-full lg:max-w-lg lg:rounded-3xl rounded-t-3xl p-5 max-h-[88vh] overflow-y-auto fade-in" style="background:var(--color-surface)" @click.stop>
+
+      <!-- JOB FORM -->
+      <template x-if="modalType==='job'">
+        <div>
+          <h3 class="font-bold text-lg mb-4" x-text="editing.id ? 'แก้ไขงานจอง' : 'จองงานใหม่'"></h3>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="col-span-2"><label class="field-label">ชื่อลูกค้า</label><input class="input" x-model="editing.customerName"></div>
+            <div><label class="field-label">วันที่จัดงาน</label><input type="date" class="input" x-model="editing.eventDate"></div>
+            <div><label class="field-label">จังหวัด</label><input class="input" x-model="editing.province"></div>
+            <div><label class="field-label">เวลาเริ่ม</label><input type="time" class="input" x-model="editing.startTime"></div>
+            <div><label class="field-label">เวลาจบ</label><input type="time" class="input" x-model="editing.endTime"></div>
+            <div class="col-span-2"><label class="field-label">สถานที่จัดงาน</label><input class="input" x-model="editing.venue"></div>
+            <div><label class="field-label">ประเภทงาน</label><input class="input" x-model="editing.jobType" placeholder="งานแต่ง / งานบวช ฯลฯ"></div>
+            <div>
+              <label class="field-label">สถานะ</label>
+              <select class="input" x-model="editing.status">
+                <option value="booked">จองแล้ว</option>
+                <option value="pending_deposit">รอมัดจำ</option>
+                <option value="completed">เสร็จสิ้น</option>
+                <option value="cancelled">ยกเลิก</option>
+              </select>
+            </div>
+            <div><label class="field-label">ราคารวม (บาท)</label><input type="number" class="input" x-model.number="editing.price"></div>
+            <div><label class="field-label">มัดจำ (บาท)</label><input type="number" class="input" x-model.number="editing.deposit"></div>
+          </div>
+          <div class="flex gap-2 mt-5">
+            <button class="btn btn-ghost flex-1" @click="modalOpen=false">ยกเลิก</button>
+            <button class="btn btn-primary flex-1" @click="saveJob()"><i class="fa-solid fa-check"></i> บันทึก</button>
+          </div>
+        </div>
+      </template>
+
+      <!-- CUSTOMER FORM -->
+      <template x-if="modalType==='customer'">
+        <div>
+          <h3 class="font-bold text-lg mb-4" x-text="editing.id ? 'แก้ไขลูกค้า' : 'เพิ่มลูกค้าใหม่'"></h3>
+          <div class="space-y-3">
+            <div><label class="field-label">ชื่อลูกค้า</label><input class="input" x-model="editing.name"></div>
+            <div><label class="field-label">เบอร์โทร</label><input class="input" x-model="editing.phone"></div>
+            <div><label class="field-label">จังหวัด</label><input class="input" x-model="editing.province"></div>
+            <div><label class="field-label">LINE</label><input class="input" x-model="editing.line"></div>
+            <div><label class="field-label">ที่อยู่</label><textarea class="input" x-model="editing.address"></textarea></div>
+            <div><label class="field-label">โน้ต</label><textarea class="input" x-model="editing.note"></textarea></div>
+          </div>
+          <div class="flex gap-2 mt-5">
+            <button class="btn btn-ghost flex-1" @click="modalOpen=false">ยกเลิก</button>
+            <button class="btn btn-primary flex-1" @click="saveCustomer()"><i class="fa-solid fa-check"></i> บันทึก</button>
+          </div>
+        </div>
+      </template>
+
+      <!-- MEMBER FORM -->
+      <template x-if="modalType==='member'">
+        <div>
+          <h3 class="font-bold text-lg mb-4" x-text="editing.id ? 'แก้ไขสมาชิก' : 'เพิ่มสมาชิกวง'"></h3>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="field-label">ชื่อ</label><input class="input" x-model="editing.name"></div>
+            <div><label class="field-label">ชื่อเล่น</label><input class="input" x-model="editing.nickname"></div>
+            <div><label class="field-label">เครื่องดนตรี</label><input class="input" x-model="editing.instrument"></div>
+            <div><label class="field-label">เบอร์โทร</label><input class="input" x-model="editing.phone"></div>
+            <div><label class="field-label">ค่าตัว/งาน</label><input type="number" class="input" x-model.number="editing.salary"></div>
+            <div>
+              <label class="field-label">สถานะ</label>
+              <select class="input" x-model="editing.status"><option value="active">ทำงาน</option><option value="inactive">พัก</option></select>
+            </div>
+          </div>
+          <div class="flex gap-2 mt-5">
+            <button class="btn btn-ghost flex-1" @click="modalOpen=false">ยกเลิก</button>
+            <button class="btn btn-primary flex-1" @click="saveMember()"><i class="fa-solid fa-check"></i> บันทึก</button>
+          </div>
+        </div>
+      </template>
+
+      <!-- EQUIPMENT FORM -->
+      <template x-if="modalType==='equipment'">
+        <div>
+          <h3 class="font-bold text-lg mb-4" x-text="editing.id ? 'แก้ไขอุปกรณ์' : 'เพิ่มอุปกรณ์'"></h3>
+          <div class="space-y-3">
+            <div><label class="field-label">ชื่ออุปกรณ์</label><input class="input" x-model="editing.name"></div>
+            <div><label class="field-label">หมวดหมู่</label><input class="input" x-model="editing.category"></div>
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="field-label">จำนวน</label><input type="number" class="input" x-model.number="editing.qty"></div>
+              <div><label class="field-label">สภาพ</label><input class="input" x-model="editing.condition"></div>
+            </div>
+            <div><label class="field-label">จัดเก็บที่</label><input class="input" x-model="editing.storage"></div>
+          </div>
+          <div class="flex gap-2 mt-5">
+            <button class="btn btn-ghost flex-1" @click="modalOpen=false">ยกเลิก</button>
+            <button class="btn btn-primary flex-1" @click="saveEquipment()"><i class="fa-solid fa-check"></i> บันทึก</button>
+          </div>
+        </div>
+      </template>
+
+      <!-- EXPENSE FORM -->
+      <template x-if="modalType==='expense'">
+        <div>
+          <h3 class="font-bold text-lg mb-4">เพิ่มรายจ่าย</h3>
+          <div class="space-y-3">
+            <div><label class="field-label">วันที่</label><input type="date" class="input" x-model="editing.date"></div>
+            <div><label class="field-label">หมวดหมู่</label><input class="input" x-model="editing.category" placeholder="ค่าเดินทาง / อาหาร ฯลฯ"></div>
+            <div><label class="field-label">รายละเอียด</label><input class="input" x-model="editing.desc"></div>
+            <div><label class="field-label">จำนวนเงิน (บาท)</label><input type="number" class="input" x-model.number="editing.amount"></div>
+            <div><label class="field-label">รหัสงาน (ถ้ามี)</label><input class="input" x-model="editing.jobId" placeholder="JB-0001"></div>
+          </div>
+          <div class="flex gap-2 mt-5">
+            <button class="btn btn-ghost flex-1" @click="modalOpen=false">ยกเลิก</button>
+            <button class="btn btn-primary flex-1" @click="saveExpense()"><i class="fa-solid fa-check"></i> บันทึก</button>
+          </div>
+        </div>
+      </template>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Register service worker for PWA/offline support
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('service-worker.js').catch(console.warn);
+    });
+  }
+
+  // FullCalendar + Chart.js render hooks (called from Alpine via renderCal/renderChart)
+  document.addEventListener('alpine:initialized', () => {
+    const root = document.querySelector('[x-data="bawmusicApp"]');
+  });
+
+  function colorForStatus(s){
+    return { booked:'#4C6FFF', pending_deposit:'#F59E0B', completed:'#22C55E', cancelled:'#EF4444' }[s] || '#4C6FFF';
+  }
+</script>
+
+<script>
+  // Extend Alpine component with calendar/chart render helpers after DOM ready
+  document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('alpine:init', () => {});
+  });
+</script>
+
+</body>
+</html>
