@@ -45,6 +45,28 @@ function fmtDateTH(d){
 const STATUS_LABEL = { booked:'จองแล้ว', pending_deposit:'รอมัดจำ', completed:'เสร็จสิ้น', cancelled:'ยกเลิก' };
 const STATUS_BADGE = { booked:'badge-booked', pending_deposit:'badge-pending', completed:'badge-completed', cancelled:'badge-cancelled' };
 
+// ---------------------------------------------------------------------------
+// PWA install prompt — captured globally (fires before Alpine may be ready)
+// and re-dispatched as a custom event the Alpine component listens for.
+// ---------------------------------------------------------------------------
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  window.__bawmusicInstallPrompt = e;
+  window.dispatchEvent(new CustomEvent('bawmusic:can-install'));
+});
+window.addEventListener('appinstalled', () => {
+  window.__bawmusicInstallPrompt = null;
+  window.dispatchEvent(new CustomEvent('bawmusic:installed'));
+});
+
+function isIOSSafari(){
+  const ua = window.navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) && !window.MSStream;
+  const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+  return isIOS && isSafari;
+}
+window.isIOSSafari = isIOSSafari;
+
 function isDemoMode(){
   const u = localStorage.getItem('bawmusic_api_url');
   return !u || u.includes('PASTE_YOUR');
@@ -77,11 +99,46 @@ document.addEventListener('alpine:init', () => {
     dashboardStats: null,
     jobSearch: '',
 
+    // PWA install
+    canInstall: false,
+    installedApp: false,
+    showInstallBanner: false,
+
     init(){
       this.applyTheme();
-      this.authed = !!this.user || this.demo;
-      if (this.authed) this.loadAll();
+      // v1 has no login screen yet, so gating data loading on "authed" left the
+      // dashboard permanently blank after connecting a real backend (this.user
+      // was always null). Data should load whenever the app has a data source —
+      // demo data, or a configured Apps Script backend.
+      this.authed = true;
+      this.loadAll();
       this.$watch('dark', v => this.applyTheme());
+
+      // ---- PWA install prompt wiring ----
+      this.installedApp = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+      window.addEventListener('bawmusic:can-install', () => {
+        if (!this.installedApp && localStorage.getItem('bawmusic_install_dismissed') !== '1') {
+          this.canInstall = true;
+          this.showInstallBanner = true;
+        }
+      });
+      window.addEventListener('bawmusic:installed', () => {
+        this.canInstall = false; this.showInstallBanner = false; this.installedApp = true;
+        toast('ติดตั้งแอป Bawmusic สำเร็จ');
+      });
+    },
+
+    async installApp(){
+      if (!window.__bawmusicInstallPrompt) return;
+      window.__bawmusicInstallPrompt.prompt();
+      const choice = await window.__bawmusicInstallPrompt.userChoice;
+      window.__bawmusicInstallPrompt = null;
+      this.canInstall = false; this.showInstallBanner = false;
+      if (choice.outcome !== 'accepted') toast('ยังไม่ได้ติดตั้งแอป', 'info');
+    },
+    dismissInstallBanner(){
+      this.showInstallBanner = false;
+      localStorage.setItem('bawmusic_install_dismissed', '1');
     },
 
     applyTheme(){
