@@ -41,6 +41,22 @@
     <a href="#" @click.prevent="goto('settings')" class="underline font-semibold">ไปตั้งค่าการเชื่อมต่อ</a>
   </div>
 
+  <!-- ===================== PWA INSTALL BANNER ===================== -->
+  <div x-show="showInstallBanner" x-cloak x-transition
+       class="fixed inset-x-0 z-50 flex items-center gap-3 px-4 py-2.5"
+       :class="demo ? 'top-7' : 'top-0'"
+       style="background:var(--color-surface); border-bottom:1px solid var(--color-border);">
+    <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm shrink-0" style="background:var(--gradient-brand)"><i class="fa-solid fa-music"></i></div>
+    <div class="min-w-0 flex-1">
+      <p class="text-[13px] font-semibold truncate">ติดตั้งแอป Bawmusic ลงหน้าจอหลัก</p>
+      <p class="text-[11.5px] truncate" style="color:var(--color-text-muted)">ใช้งานได้เร็วขึ้นและออฟไลน์ได้บางส่วน</p>
+    </div>
+    <button class="btn btn-primary btn-sm shrink-0" @click="installApp()">ติดตั้ง</button>
+    <button class="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style="color:var(--color-text-muted)" @click="dismissInstallBanner()" aria-label="ปิด">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
+  </div>
+
   <div class="app-shell" :class="{'pt-7': demo}">
 
     <!-- ===================== SIDEBAR (Desktop) ===================== -->
@@ -347,6 +363,21 @@
             <label class="field-label">LINE ID</label>
             <input x-model="settings.line" class="input mb-3">
             <button class="btn btn-primary w-full" @click="demo ? toast('บันทึกแล้ว (โหมดสาธิต)') : BawmusicAPI.saveSettings(settings).then(()=>toast('บันทึกแล้ว'))"><i class="fa-solid fa-floppy-disk"></i> บันทึกการตั้งค่า</button>
+          </div>
+
+          <div class="card card-pad max-w-xl mt-4" x-show="canInstall || installedApp">
+            <h3 class="font-bold text-[15px] mb-1">ติดตั้งแอปลงมือถือ</h3>
+            <p class="text-[12.5px] mb-3" style="color:var(--color-text-muted)" x-text="installedApp ? 'ติดตั้งแอปนี้ไว้ในเครื่องแล้ว' : 'เพิ่ม Bawmusic ลงหน้าจอหลักเพื่อเปิดใช้งานได้เร็วเหมือนแอปทั่วไป'"></p>
+            <button class="btn btn-primary w-full" x-show="!installedApp" @click="installApp()"><i class="fa-solid fa-download"></i> ติดตั้งแอป</button>
+          </div>
+
+          <div class="card card-pad max-w-xl mt-4" x-show="!canInstall && !installedApp && isIOSSafari()">
+            <h3 class="font-bold text-[15px] mb-1">ติดตั้งแอปลงมือถือ (iOS)</h3>
+            <p class="text-[12.5px]" style="color:var(--color-text-muted)">
+              Safari บน iPhone/iPad ไม่รองรับปุ่มติดตั้งอัตโนมัติ — แตะไอคอน
+              <i class="fa-solid fa-arrow-up-from-bracket"></i> (แชร์) ด้านล่างเบราว์เซอร์ แล้วเลือก
+              <b>"เพิ่มไปยังหน้าจอโฮม"</b> (Add to Home Screen)
+            </p>
           </div>
 
           <div class="card card-pad max-w-xl mt-4">
